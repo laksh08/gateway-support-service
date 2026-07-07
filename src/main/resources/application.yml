@@ -1,0 +1,30 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: gateway-support-service
+  main:
+    web-application-type: reactive
+
+routing:
+  provider: yaml
+  consul:
+    key-prefix: gateway/routes
+    poll-interval-ms: 30000
+
+forwarding:
+  service-url-pattern: "http://{serviceName}"
+  connect-timeout-ms: 5000
+  read-timeout-ms: 30000
+  max-connections: 200
+  max-idle-time-seconds: 30
+
+allowed-hosts:
+  reload-cron: "0 0 * * * *"
+
+routes:
+  getCustomer: customer-service
+  createCustomer: customer-write-service
+  makePayment: payment-service
+  issuePolicy: policy-service
