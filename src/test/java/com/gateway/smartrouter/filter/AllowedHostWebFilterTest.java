@@ -1,6 +1,8 @@
 package com.gateway.smartrouter.filter;
 
+import com.gateway.smartrouter.repository.MockAllowedHostRepository;
 import com.gateway.smartrouter.service.AllowedHostService;
+import com.gateway.smartrouter.service.GatewayMetricsService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -19,11 +21,10 @@ class AllowedHostWebFilterTest {
 
     @BeforeEach
     void setUp() {
-        AllowedHostService allowedHostService = new AllowedHostService(
-                () -> reactor.core.publisher.Mono.just(java.util.Set.of("gateway.example.com")));
+        AllowedHostService allowedHostService = new AllowedHostService(new MockAllowedHostRepository());
         allowedHostService.initialize();
 
-        filter = new AllowedHostWebFilter(allowedHostService, new ClientIpResolver());
+        filter = new AllowedHostWebFilter(allowedHostService, new ClientIpResolver(), new GatewayMetricsService());
         chainInvoked = false;
     }
 

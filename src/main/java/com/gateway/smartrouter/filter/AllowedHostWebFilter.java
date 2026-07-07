@@ -1,6 +1,7 @@
 package com.gateway.smartrouter.filter;
 
 import com.gateway.smartrouter.service.AllowedHostService;
+import com.gateway.smartrouter.service.GatewayMetricsService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
@@ -25,10 +26,15 @@ public class AllowedHostWebFilter implements WebFilter {
 
     private final AllowedHostService allowedHostService;
     private final ClientIpResolver clientIpResolver;
+    private final GatewayMetricsService gatewayMetricsService;
 
-    public AllowedHostWebFilter(AllowedHostService allowedHostService, ClientIpResolver clientIpResolver) {
+    public AllowedHostWebFilter(
+            AllowedHostService allowedHostService,
+            ClientIpResolver clientIpResolver,
+            GatewayMetricsService gatewayMetricsService) {
         this.allowedHostService = allowedHostService;
         this.clientIpResolver = clientIpResolver;
+        this.gatewayMetricsService = gatewayMetricsService;
     }
 
     @Override
@@ -38,12 +44,14 @@ public class AllowedHostWebFilter implements WebFilter {
             return chain.filter(exchange);
         }
 
+        long start = System.currentTimeMillis();
         ServerHttpRequest request = exchange.getRequest();
         String host = resolveHost(request);
         String clientIp = clientIpResolver.resolve(request);
 
         if (!allowedHostService.isHostAllowed(host)) {
             log.warn("Rejected request from host '{}' (client IP: {}) for path '{}'", host, clientIp, path);
+            gatewayMetricsService.recordHostRejection(System.currentTimeMillis() - start);
             exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
             return exchange.getResponse().setComplete();
         }

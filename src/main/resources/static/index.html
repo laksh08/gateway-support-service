@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gateway Support Portal</title>
+    <link rel="stylesheet" href="/css/portal.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+</head>
+<body>
+<div id="app" class="app-shell">
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="brand-icon">GW</div>
+            <div>
+                <h1>Gateway Portal</h1>
+                <p>Smart Router Console</p>
+            </div>
+        </div>
+        <nav class="nav-menu">
+            <button class="nav-item active" data-view="dashboard">
+                <span class="nav-icon">📊</span> Dashboard
+            </button>
+            <button class="nav-item" data-view="hosts">
+                <span class="nav-icon">🛡️</span> Allowed Hosts
+            </button>
+            <button class="nav-item" data-view="rest-client">
+                <span class="nav-icon">🔌</span> REST Client
+            </button>
+            <button class="nav-item" data-view="profile">
+                <span class="nav-icon">👤</span> Profile
+            </button>
+        </nav>
+        <div class="sidebar-footer">
+            <button id="theme-toggle" class="btn btn-ghost" type="button">Toggle Theme</button>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <header class="topbar">
+            <div>
+                <h2 id="page-title">Dashboard</h2>
+                <p id="page-subtitle">Gateway traffic overview and health metrics</p>
+            </div>
+            <div class="topbar-actions">
+                <span id="user-badge" class="user-badge">Not signed in</span>
+                <button id="login-btn" class="btn btn-primary" type="button">AD Login</button>
+            </div>
+        </header>
+
+        <section id="view-dashboard" class="view active"></section>
+        <section id="view-hosts" class="view"></section>
+        <section id="view-rest-client" class="view"></section>
+        <section id="view-profile" class="view"></section>
+    </main>
+</div>
+
+<!-- AD Login Modal -->
+<div id="login-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-card">
+        <h3>Active Directory Login</h3>
+        <p>Sign in to perform administrative actions. Your username is recorded for auditing.</p>
+        <form id="login-form">
+            <label>Username
+                <input type="text" id="login-username" required autocomplete="username" placeholder="domain\\username">
+            </label>
+            <label>Password
+                <input type="password" id="login-password" required autocomplete="current-password">
+            </label>
+            <p id="login-error" class="error-text hidden"></p>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-ghost" id="login-cancel">Cancel</button>
+                <button type="submit" class="btn btn-primary">Sign In</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Host Form Modal -->
+<div id="host-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-card modal-card-wide">
+        <h3 id="host-modal-title">Add Allowed Host</h3>
+        <form id="host-form">
+            <input type="hidden" id="host-id">
+            <div class="form-grid">
+                <label>Hostname *
+                    <input type="text" id="host-hostname" required>
+                </label>
+                <label>IP Address
+                    <input type="text" id="host-ip" placeholder="10.0.0.1">
+                </label>
+                <label>DMZ Server
+                    <input type="text" id="host-dmz" placeholder="dmz-web-01">
+                </label>
+                <label>Status *
+                    <select id="host-status" required>
+                        <option value="ACTIVE">ACTIVE</option>
+                        <option value="INACTIVE">INACTIVE</option>
+                    </select>
+                </label>
+                <label class="full-width">Description
+                    <textarea id="host-description" rows="2"></textarea>
+                </label>
+            </div>
+            <p id="host-form-error" class="error-text hidden"></p>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-ghost" id="host-cancel">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="/js/api.js" defer></script>
+<script src="/js/theme.js" defer></script>
+<script src="/js/auth.js" defer></script>
+<script src="/js/dashboard.js" defer></script>
+<script src="/js/hosts.js" defer></script>
+<script src="/js/rest-client.js" defer></script>
+<script src="/js/profile.js" defer></script>
+<script src="/js/app.js" defer></script>
+</body>
+</html>

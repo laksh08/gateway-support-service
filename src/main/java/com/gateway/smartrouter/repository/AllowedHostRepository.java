@@ -1,14 +1,23 @@
 package com.gateway.smartrouter.repository;
 
+import com.gateway.smartrouter.model.AllowedHost;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.Set;
 
 /**
- * Repository interface for loading allowed hosts from DB2.
- * Production deployments provide a real DB2-backed implementation.
+ * Repository interface for allowed host persistence (DB2 in production).
  */
 public interface AllowedHostRepository {
 
-    Mono<Set<String>> findAllAllowedHosts();
+    Flux<AllowedHost> findAll();
+
+    Mono<AllowedHost> findById(Long id);
+
+    Mono<AllowedHost> save(AllowedHost host);
+
+    Mono<Boolean> deleteById(Long id);
+
+    Mono<Set<String>> findActiveHostnames();
 }

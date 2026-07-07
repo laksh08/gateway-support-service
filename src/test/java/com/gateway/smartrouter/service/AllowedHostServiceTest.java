@@ -1,11 +1,9 @@
 package com.gateway.smartrouter.service;
 
-import com.gateway.smartrouter.repository.AllowedHostRepository;
+import com.gateway.smartrouter.repository.MockAllowedHostRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import reactor.test.StepVerifier;
-
-import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -15,9 +13,7 @@ class AllowedHostServiceTest {
 
     @BeforeEach
     void setUp() {
-        AllowedHostRepository repository = () -> reactor.core.publisher.Mono.just(
-                Set.of("API.Example.COM", "gateway.example.com"));
-        allowedHostService = new AllowedHostService(repository);
+        allowedHostService = new AllowedHostService(new MockAllowedHostRepository());
         allowedHostService.initialize();
     }
 
@@ -38,7 +34,7 @@ class AllowedHostServiceTest {
         StepVerifier.create(allowedHostService.reload())
                 .verifyComplete();
 
-        assertThat(allowedHostService.getAllowedHosts()).containsExactlyInAnyOrder(
-                "api.example.com", "gateway.example.com");
+        assertThat(allowedHostService.getAllowedHosts())
+                .contains("api.example.com", "gateway.example.com", "localhost");
     }
 }

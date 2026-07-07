@@ -23,6 +23,27 @@ mvn spring-boot:run
 mvn test
 ```
 
+## Admin Portal UI
+
+The management portal is bundled in the Spring Boot JAR as static HTML/CSS/JS (no Node/npm required).
+
+| URL | Description |
+|-----|-------------|
+| `/` or `/portal` | Portal home (Dashboard) |
+| `/api/portal/dashboard` | Gateway stats API |
+| `/api/portal/allowed-hosts` | Allowed host CRUD API |
+| `/api/portal/rest-client/execute` | REST client proxy API |
+| `/api/portal/auth/login` | Mock AD login API |
+
+### Portal Features
+
+- **Dashboard** — requests served, success/failure rate, avg/P95 latency, top 10 services, latency distribution charts
+- **Allowed Hosts** — table with CRUD (hostname, ip, description, dmz_server, status, created_by, updated_by), cache refresh
+- **REST Client** — import Bruno/Postman JSON collections and execute requests
+- **Profile** — signed-in user and portal settings
+- **Themes** — light (blue/white) and dark mode toggle
+- **AD Login** — prompt captures username for auditing (`X-Portal-User` header on mutations)
+
 ## Endpoint
 
 **POST** `/WebServices/Gateway/CBISvc`
