@@ -1,6 +1,7 @@
 package com.gateway.smartrouter.service;
 
-import com.gateway.smartrouter.config.ForwardingProperties;
+import com.gateway.smartrouter.config.EnvoyProperties;
+import com.gateway.smartrouter.routing.RouteTarget;
 import com.gateway.smartrouter.routing.RoutingProvider;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -15,41 +16,47 @@ import org.springframework.mock.web.server.MockServerWebExchange;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.test.StepVerifier;
 
+import java.util.Map;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 class RequestForwardingServiceTest {
 
     private MockWebServer mockWebServer;
     private RequestForwardingService forwardingService;
+    private EnvoyProperties envoyProperties;
 
     @BeforeEach
     void setUp() throws Exception {
         mockWebServer = new MockWebServer();
         mockWebServer.start();
 
-        ForwardingProperties properties = new ForwardingProperties(
-                "http://localhost:" + mockWebServer.getPort(),
-                5000,
-                30000,
-                10,
-                30
+        envoyProperties = new EnvoyProperties(
+                "passthrough",
+                "service.consul",
+                mockWebServer.getPort(),
+                "127.0.0.1",
+                9090
         );
 
         RoutingProvider routingProvider = new RoutingProvider() {
             @Override
-            public void initialize() {
+            public void initialize() {}
+
+            @Override
+            public RouteTarget resolveTarget(String serviceMethod) {
+                return RouteTarget.parse("localhost/WebServices/Gateway/CBISvc");
             }
 
             @Override
-            public String resolveService(String serviceMethod) {
-                return "customer-service";
-            }
+            public void reload() {}
 
             @Override
-            public void reload() {
+            public Map<String, RouteTarget> getAllRoutes() {
+                return Map.of();
             }
         };
-        forwardingService = new RequestForwardingService(WebClient.create(), properties, routingProvider);
+        forwardingService = new RequestForwardingService(WebClient.create(), envoyProperties, routingProvider);
     }
 
     @AfterEach
@@ -89,27 +96,48 @@ class RequestForwardingServiceTest {
     }
 
     @Test
-    void buildsDownstreamUrlFromServiceNameAndOriginalPath() {
-        ForwardingProperties properties = new ForwardingProperties(
-                "http://{serviceName}", 5000, 30000, 10, 30);
-        RoutingProvider routingProvider = new RoutingProvider() {
-            @Override
-            public void initialize() {
-            }
+    void buildsConsulDnsUrl() {
+        EnvoyProperties consulDnsProps = new EnvoyProperties(
+                "consul-dns", "service.consul", 8080, "127.0.0.1", 9090);
+        RequestForwardingService svc = new RequestForwardingService(
+                WebClient.create(), consulDnsProps, routingProviderFor("customer-service/soap/CustSvc"));
 
-            @Override
-            public String resolveService(String serviceMethod) {
-                return "payment-service";
-            }
+        RouteTarget target = RouteTarget.parse("customer-service/soap/CustSvc");
+        String url = svc.buildDownstreamUrl(target, "/WebServices/Gateway/CBISvc");
+        assertThat(url).isEqualTo("http://customer-service.service.consul:8080/soap/CustSvc");
+    }
 
-            @Override
-            public void reload() {
-            }
+    @Test
+    void buildsUpstreamPortUrl() {
+        EnvoyProperties upstreamProps = new EnvoyProperties(
+                "upstream-port", "service.consul", 8080, "127.0.0.1", 9090);
+        RequestForwardingService svc = new RequestForwardingService(
+                WebClient.create(), upstreamProps, routingProviderFor("customer-service:9091/soap/CustSvc"));
+
+        RouteTarget target = RouteTarget.parse("customer-service:9091/soap/CustSvc");
+        String url = svc.buildDownstreamUrl(target, "/WebServices/Gateway/CBISvc");
+        assertThat(url).isEqualTo("http://127.0.0.1:9091/soap/CustSvc");
+    }
+
+    @Test
+    void usesOriginalPathWhenNoUpstreamPathSet() {
+        EnvoyProperties passthroughProps = new EnvoyProperties(
+                "passthrough", "service.consul", 8080, "127.0.0.1", 9090);
+        RequestForwardingService svc = new RequestForwardingService(
+                WebClient.create(), passthroughProps, routingProviderFor("customer-service"));
+
+        RouteTarget target = RouteTarget.parse("customer-service");
+        String url = svc.buildDownstreamUrl(target, "/WebServices/Gateway/CBISvc");
+        assertThat(url).isEqualTo("http://customer-service:8080/WebServices/Gateway/CBISvc");
+    }
+
+    private RoutingProvider routingProviderFor(String rawTarget) {
+        RouteTarget t = RouteTarget.parse(rawTarget);
+        return new RoutingProvider() {
+            @Override public void initialize() {}
+            @Override public RouteTarget resolveTarget(String m) { return t; }
+            @Override public void reload() {}
+            @Override public Map<String, RouteTarget> getAllRoutes() { return Map.of(); }
         };
-        RequestForwardingService service = new RequestForwardingService(
-                WebClient.create(), properties, routingProvider);
-
-        assertThat(service.buildDownstreamUrl("payment-service", "/WebServices/Gateway/CBISvc"))
-                .isEqualTo("http://payment-service/WebServices/Gateway/CBISvc");
     }
 }

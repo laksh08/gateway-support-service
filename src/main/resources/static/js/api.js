@@ -55,6 +55,15 @@ const PortalApi = (() => {
         executeRequest: (payload) => request('/api/portal/rest-client/execute', {
             method: 'POST',
             body: JSON.stringify(payload)
-        })
+        }),
+        listRoutes: () => request('/api/portal/routes'),
+        upsertRoute: (serviceMethod, routeValue) => request(`/api/portal/routes/${encodeURIComponent(serviceMethod)}`, {
+            method: 'PUT',
+            body: JSON.stringify({ routeValue })
+        }),
+        deleteRoute: (serviceMethod) => request(`/api/portal/routes/${encodeURIComponent(serviceMethod)}`, {
+            method: 'DELETE'
+        }),
+        refreshRoutes: () => request('/api/portal/routes/refresh', { method: 'POST' })
     };
 })();

@@ -1,5 +1,6 @@
 package com.gateway.smartrouter.config;
 
+import com.gateway.smartrouter.routing.ConsulKvClient;
 import com.gateway.smartrouter.routing.ConsulRoutingProvider;
 import com.gateway.smartrouter.routing.RoutingCache;
 import com.gateway.smartrouter.routing.RoutingProvider;
@@ -21,6 +22,8 @@ import java.time.Duration;
 @EnableConfigurationProperties({
         RoutingProperties.class,
         ForwardingProperties.class,
+        EnvoyProperties.class,
+        ConsulClientProperties.class,
         RoutesProperties.class
 })
 public class ApplicationConfiguration {
@@ -29,13 +32,15 @@ public class ApplicationConfiguration {
     public RoutingProvider routingProvider(
             RoutingProperties routingProperties,
             RoutesProperties routesProperties,
-            RoutingCache routingCache) {
+            RoutingCache routingCache,
+            ConsulKvClient consulKvClient) {
 
         return switch (routingProperties.provider().toLowerCase()) {
-            case "consul" -> new ConsulRoutingProvider(routingProperties, routingCache);
-            case "yaml" -> new YamlRoutingProvider(routesProperties, routingCache);
+            case "consul" -> new ConsulRoutingProvider(routingProperties, routingCache, consulKvClient);
+            case "yaml"   -> new YamlRoutingProvider(routesProperties, routingCache);
             default -> throw new IllegalStateException(
-                    "Unsupported routing provider: " + routingProperties.provider());
+                    "Unsupported routing provider: " + routingProperties.provider()
+                            + ". Valid values: yaml, consul");
         };
     }
 

@@ -7,24 +7,80 @@ spring:
   main:
     web-application-type: reactive
 
+# ── Routing Provider ───────────────────────────────────────────────────────────
+# Set provider: yaml  (load from routes: block below)
+#     provider: consul (load from Consul KV – requires consul.client config)
 routing:
   provider: yaml
   consul:
     key-prefix: gateway/routes
     poll-interval-ms: 30000
 
+# ── Envoy / Consul Service Mesh Forwarding ─────────────────────────────────────
+#
+#   mode: consul-dns      (DEFAULT)
+#     Downstream URL: http://{serviceName}.service.consul:{defaultPort}/{upstreamPath}
+#     Envoy transparent proxy intercepts outbound and applies mTLS + load balancing.
+#     No Envoy port mapping required; relies on Consul DNS and Envoy iptables capture.
+#
+#   mode: upstream-port
+#     Downstream URL: http://127.0.0.1:{port}/{upstreamPath}
+#     Each upstream service is mapped to a local Envoy listener port in the
+#     sidecar proxy config (upstreams block in Consul service registration).
+#     Route value must include the port, e.g.:  customer-service:9091/soap/CustSvc
+#
+#   mode: passthrough
+#     Downstream URL: http://{host}:{defaultPort}/{upstreamPath}
+#     No DNS suffix is added. Use for local dev / testing outside the mesh.
+#
 forwarding:
-  service-url-pattern: "http://{serviceName}"
+  envoy:
+    mode: consul-dns
+    consul-domain: service.consul
+    default-port: 8080
+    envoy-proxy-host: 127.0.0.1
+    default-upstream-port: 9090
   connect-timeout-ms: 5000
   read-timeout-ms: 30000
   max-connections: 200
   max-idle-time-seconds: 30
 
+# ── Consul HTTP API Client ─────────────────────────────────────────────────────
+# Required when routing.provider=consul
+consul:
+  client:
+    host: 127.0.0.1
+    port: 8500
+    scheme: http
+    token:                  # ACL token (leave blank if ACL disabled)
+    connect-timeout-ms: 2000
+    read-timeout-ms: 5000
+
+# ── Allowed Hosts ──────────────────────────────────────────────────────────────
 allowed-hosts:
   reload-cron: "0 0 * * * *"
 
+# ── Route Definitions (yaml provider) ─────────────────────────────────────────
+#
+# Format:  {serviceMethod}: {serviceName}[/{upstreamPath}][:{port}]
+#
+# consul-dns mode examples:
+#   getCustomer:    customer-service/soap/CustomerService
+#     → http://customer-service.service.consul:8080/soap/CustomerService
+#
+#   makePayment:    payment-service/soap/PaymentService
+#     → http://payment-service.service.consul:8080/soap/PaymentService
+#
+# upstream-port mode examples (port = local Envoy listener):
+#   getCustomer:    customer-service:9091/soap/CustomerService
+#     → http://127.0.0.1:9091/soap/CustomerService
+#
+# passthrough mode examples (direct, no mesh):
+#   getCustomer:    10.0.1.50:8080/soap/CustomerService
+#     → http://10.0.1.50:8080/soap/CustomerService
+#
 routes:
-  getCustomer: customer-service
-  createCustomer: customer-write-service
-  makePayment: payment-service
-  issuePolicy: policy-service
+  getCustomer: customer-service/soap/CustomerService
+  createCustomer: customer-write-service/soap/CustomerWriteService
+  makePayment: payment-service/soap/PaymentService
+  issuePolicy: policy-service/soap/PolicyService

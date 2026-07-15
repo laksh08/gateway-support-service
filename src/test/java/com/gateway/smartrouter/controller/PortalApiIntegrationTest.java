@@ -1,6 +1,7 @@
 package com.gateway.smartrouter.controller;
 
 import com.gateway.smartrouter.model.AllowedHostRequest;
+import com.gateway.smartrouter.routing.RouteTarget;
 import com.gateway.smartrouter.routing.RoutingProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -12,6 +13,8 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.reactive.server.WebTestClient;
+
+import java.util.Map;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
@@ -80,6 +83,31 @@ class PortalApiIntegrationTest {
                 .jsonPath("$.createdBy").isEqualTo("test.user");
     }
 
+    @Test
+    void listsRoutes() {
+        webTestClient.get()
+                .uri("/api/portal/routes")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$[0].serviceMethod").exists()
+                .jsonPath("$[0].routeValue").exists();
+    }
+
+    @Test
+    void upsertAndRetrieveRoute() {
+        webTestClient.put()
+                .uri("/api/portal/routes/testMethod")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(Map.of("routeValue", "test-service/soap/TestService"))
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.serviceMethod").isEqualTo("testMethod")
+                .jsonPath("$.resolvedHost").isEqualTo("test-service")
+                .jsonPath("$.upstreamPath").isEqualTo("/soap/TestService");
+    }
+
     @TestConfiguration
     static class TestRoutingConfiguration {
 
@@ -87,17 +115,25 @@ class PortalApiIntegrationTest {
         @Primary
         RoutingProvider testRoutingProvider() {
             return new RoutingProvider() {
+                private final java.util.concurrent.atomic.AtomicReference<Map<String, RouteTarget>> routes =
+                        new java.util.concurrent.atomic.AtomicReference<>(
+                                Map.of("getCustomer", RouteTarget.parse("customer-service/soap/CustomerService"))
+                        );
+
                 @Override
-                public void initialize() {
+                public void initialize() {}
+
+                @Override
+                public RouteTarget resolveTarget(String serviceMethod) {
+                    return routes.get().get(serviceMethod);
                 }
 
                 @Override
-                public String resolveService(String serviceMethod) {
-                    return "customer-service";
-                }
+                public void reload() {}
 
                 @Override
-                public void reload() {
+                public Map<String, RouteTarget> getAllRoutes() {
+                    return routes.get();
                 }
             };
         }

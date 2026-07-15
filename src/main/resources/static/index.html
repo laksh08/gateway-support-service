@@ -24,6 +24,9 @@
             <button class="nav-item" data-view="hosts">
                 <span class="nav-icon">🛡️</span> Allowed Hosts
             </button>
+            <button class="nav-item" data-view="routes">
+                <span class="nav-icon">🔀</span> Routes
+            </button>
             <button class="nav-item" data-view="rest-client">
                 <span class="nav-icon">🔌</span> REST Client
             </button>
@@ -50,6 +53,7 @@
 
         <section id="view-dashboard" class="view active"></section>
         <section id="view-hosts" class="view"></section>
+        <section id="view-routes" class="view"></section>
         <section id="view-rest-client" class="view"></section>
         <section id="view-profile" class="view"></section>
     </main>
@@ -72,6 +76,32 @@
             <div class="modal-actions">
                 <button type="button" class="btn btn-ghost" id="login-cancel">Cancel</button>
                 <button type="submit" class="btn btn-primary">Sign In</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Route Upsert Modal -->
+<div id="route-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-card">
+        <h3 id="route-modal-title">Add / Update Route</h3>
+        <p style="font-size:0.85rem;color:var(--text-secondary)">
+            Format: <code>serviceName[/upstreamPath][:port]</code><br>
+            e.g. <code>customer-service/soap/CustomerService</code>
+        </p>
+        <form id="route-form">
+            <input type="hidden" id="route-method-orig">
+            <label>Service Method *
+                <input type="text" id="route-service-method" required placeholder="getCustomer">
+            </label>
+            <label>Route Value *
+                <input type="text" id="route-value" required placeholder="customer-service/soap/CustomerService">
+            </label>
+            <p id="route-form-error" class="error-text hidden"></p>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-ghost" id="route-cancel">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save</button>
             </div>
         </form>
     </div>
@@ -118,6 +148,7 @@
 <script src="/js/auth.js" defer></script>
 <script src="/js/dashboard.js" defer></script>
 <script src="/js/hosts.js" defer></script>
+<script src="/js/routes.js" defer></script>
 <script src="/js/rest-client.js" defer></script>
 <script src="/js/profile.js" defer></script>
 <script src="/js/app.js" defer></script>

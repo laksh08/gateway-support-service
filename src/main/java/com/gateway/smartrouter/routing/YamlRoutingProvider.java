@@ -9,7 +9,18 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Loads routing mappings from application.yml at startup and on manual reload.
+ * Loads routing mappings from {@code application.yml} at startup and on demand.
+ *
+ * <h3>YAML route format</h3>
+ * <pre>
+ * routes:
+ *   getCustomer:  customer-service/soap/CustomerService
+ *   makePayment:  payment-service/soap/PaymentService
+ *   issuePolicy:  policy-service:9091
+ *   createOrder:  order-service:9092/orders/create
+ * </pre>
+ *
+ * Each value is parsed into a {@link RouteTarget} by {@link RouteTarget#parse(String)}.
  */
 public class YamlRoutingProvider implements RoutingProvider {
 
@@ -30,19 +41,30 @@ public class YamlRoutingProvider implements RoutingProvider {
     }
 
     @Override
-    public String resolveService(String serviceMethod) {
+    public RouteTarget resolveTarget(String serviceMethod) {
         return routingCache.resolve(serviceMethod);
     }
 
     @Override
+    public Map<String, RouteTarget> getAllRoutes() {
+        return routingCache.getRoutes();
+    }
+
+    @Override
     public void reload() {
-        Map<String, String> routes = routesProperties;
-        if (routes.isEmpty()) {
+        Map<String, String> raw = routesProperties;
+        if (raw.isEmpty()) {
             log.warn("No routes configured in application.yml");
-            routingCache.replaceRoutes(Map.of());
+            routingCache.replaceFromStrings(Map.of());
             return;
         }
-        routingCache.replaceRoutes(new HashMap<>(routes));
-        log.info("Loaded {} route(s) from application.yml", routes.size());
+        try {
+            routingCache.replaceFromStrings(new HashMap<>(raw));
+            log.info("Loaded {} route(s) from application.yml", raw.size());
+            routingCache.getRoutes().forEach((method, target) ->
+                    log.debug("  {} → {}", method, target.rawValue()));
+        } catch (IllegalArgumentException ex) {
+            log.error("Invalid route definition in application.yml: {}", ex.getMessage());
+        }
     }
 }

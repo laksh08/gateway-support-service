@@ -11,6 +11,11 @@ const PortalApp = (() => {
             subtitle: 'Manage allowed host entries and refresh the in-memory cache',
             init: () => PortalHosts.init()
         },
+        routes: {
+            title: 'Route Management',
+            subtitle: 'View and update SOAP service-method → Consul/Envoy target routing',
+            init: () => PortalRoutes.init()
+        },
         'rest-client': {
             title: 'REST Client',
             subtitle: 'Import Bruno or Postman collections and execute requests',

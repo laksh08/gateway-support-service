@@ -1,5 +1,6 @@
 package com.gateway.smartrouter;
 
+import com.gateway.smartrouter.routing.RouteTarget;
 import com.gateway.smartrouter.routing.RoutingProvider;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -17,6 +18,8 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.reactive.server.WebTestClient;
+
+import java.util.Map;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
@@ -56,8 +59,12 @@ class GatewayIntegrationTest {
             mockWebServer = new MockWebServer();
             mockWebServer.start();
         }
-        registry.add("forwarding.service-url-pattern",
-                () -> "http://127.0.0.1:" + mockWebServer.getPort());
+        // Use passthrough mode so the URL goes to the mock server
+        registry.add("forwarding.envoy.mode", () -> "passthrough");
+        registry.add("forwarding.envoy.default-port", () -> String.valueOf(mockWebServer.getPort()));
+        registry.add("forwarding.envoy.consul-domain", () -> "service.consul");
+        registry.add("forwarding.envoy.envoy-proxy-host", () -> "127.0.0.1");
+        registry.add("forwarding.envoy.default-upstream-port", () -> String.valueOf(mockWebServer.getPort()));
     }
 
     @Test
@@ -109,16 +116,20 @@ class GatewayIntegrationTest {
         RoutingProvider testRoutingProvider() {
             return new RoutingProvider() {
                 @Override
-                public void initialize() {
+                public void initialize() {}
+
+                @Override
+                public RouteTarget resolveTarget(String serviceMethod) {
+                    // Route to 127.0.0.1 (passthrough mode + default-port = mockWebServer.getPort())
+                    return RouteTarget.parse("127.0.0.1");
                 }
 
                 @Override
-                public String resolveService(String serviceMethod) {
-                    return "customer-service";
-                }
+                public void reload() {}
 
                 @Override
-                public void reload() {
+                public Map<String, RouteTarget> getAllRoutes() {
+                    return Map.of("getCustomer", RouteTarget.parse("127.0.0.1"));
                 }
             };
         }
