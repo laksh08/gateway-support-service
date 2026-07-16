@@ -3,84 +3,92 @@ server:
 
 spring:
   application:
-    name: gateway-support-service
+    name: gateway-support
   main:
     web-application-type: reactive
+  codec:
+    max-in-memory-size: 4MB
 
-# ── Routing Provider ───────────────────────────────────────────────────────────
-# Set provider: yaml  (load from routes: block below)
-#     provider: consul (load from Consul KV – requires consul.client config)
-routing:
-  provider: yaml
-  consul:
-    key-prefix: gateway/routes
-    poll-interval-ms: 30000
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  health:
+    defaults:
+      enabled: true
 
-# ── Envoy / Consul Service Mesh Forwarding ─────────────────────────────────────
-#
-#   mode: consul-dns      (DEFAULT)
-#     Downstream URL: http://{serviceName}.service.consul:{defaultPort}/{upstreamPath}
-#     Envoy transparent proxy intercepts outbound and applies mTLS + load balancing.
-#     No Envoy port mapping required; relies on Consul DNS and Envoy iptables capture.
-#
-#   mode: upstream-port
-#     Downstream URL: http://127.0.0.1:{port}/{upstreamPath}
-#     Each upstream service is mapped to a local Envoy listener port in the
-#     sidecar proxy config (upstreams block in Consul service registration).
-#     Route value must include the port, e.g.:  customer-service:9091/soap/CustSvc
-#
-#   mode: passthrough
-#     Downstream URL: http://{host}:{defaultPort}/{upstreamPath}
-#     No DNS suffix is added. Use for local dev / testing outside the mesh.
-#
-forwarding:
-  envoy:
-    mode: consul-dns
-    consul-domain: service.consul
-    default-port: 8080
-    envoy-proxy-host: 127.0.0.1
-    default-upstream-port: 9090
-  connect-timeout-ms: 5000
-  read-timeout-ms: 30000
-  max-connections: 200
-  max-idle-time-seconds: 30
+# ── Gateway Core Configuration ──────────────────────────────────────────────
+gateway:
 
-# ── Consul HTTP API Client ─────────────────────────────────────────────────────
-# Required when routing.provider=consul
+  # Hosts allowed to send requests to /WebServices/**
+  # Use * to allow all (development only)
+  allowed-hosts:
+    - "*"
+
+  # Route resolver: yaml | consul-kv
+  route-resolver: yaml
+
+  # Load balancer strategy: round-robin | random | least-connections | weighted
+  load-balancer: round-robin
+
+  forwarding:
+    connect-timeout: PT5S
+    read-timeout: PT30S
+    write-timeout: PT10S
+    max-connections: 500
+    max-idle-time: PT30S
+    max-in-memory-size-bytes: 4194304   # 4 MB
+
+  cache:
+    route-ttl: PT5M
+    discovery-ttl: PT30S
+    max-size: 1000
+
+  # Route definitions (used when route-resolver=yaml)
+  #
+  # Format:
+  #   {soapOperation}:
+  #     service:     <Consul service name registered by Nomad>
+  #     targetPath:  <upstream HTTP path on the service>
+  #     timeout:     <ISO-8601 duration, optional, default PT30S>
+  #
+  # The gateway discovers service instances dynamically from Consul on every cache miss.
+  # Ports are NEVER hardcoded here — they come from Consul at runtime.
+  routes:
+    createCustomer:
+      service: customer-service
+      targetPath: /soap/customer
+      timeout: PT30S
+    updateCustomer:
+      service: customer-service
+      targetPath: /soap/customer
+    getCustomer:
+      service: customer-service
+      targetPath: /soap/customer
+    createOrder:
+      service: order-service
+      targetPath: /soap/order
+    getOrder:
+      service: order-service
+      targetPath: /soap/order
+    makePayment:
+      service: payment-service
+      targetPath: /soap/payment
+    issuePolicy:
+      service: policy-service
+      targetPath: /soap/policy
+
+# ── Consul HTTP API Client ──────────────────────────────────────────────────
 consul:
-  client:
-    host: 127.0.0.1
-    port: 8500
-    scheme: http
-    token:                  # ACL token (leave blank if ACL disabled)
-    connect-timeout-ms: 2000
-    read-timeout-ms: 5000
-
-# ── Allowed Hosts ──────────────────────────────────────────────────────────────
-allowed-hosts:
-  reload-cron: "0 0 * * * *"
-
-# ── Route Definitions (yaml provider) ─────────────────────────────────────────
-#
-# Format:  {serviceMethod}: {serviceName}[/{upstreamPath}][:{port}]
-#
-# consul-dns mode examples:
-#   getCustomer:    customer-service/soap/CustomerService
-#     → http://customer-service.service.consul:8080/soap/CustomerService
-#
-#   makePayment:    payment-service/soap/PaymentService
-#     → http://payment-service.service.consul:8080/soap/PaymentService
-#
-# upstream-port mode examples (port = local Envoy listener):
-#   getCustomer:    customer-service:9091/soap/CustomerService
-#     → http://127.0.0.1:9091/soap/CustomerService
-#
-# passthrough mode examples (direct, no mesh):
-#   getCustomer:    10.0.1.50:8080/soap/CustomerService
-#     → http://10.0.1.50:8080/soap/CustomerService
-#
-routes:
-  getCustomer: customer-service/soap/CustomerService
-  createCustomer: customer-write-service/soap/CustomerWriteService
-  makePayment: payment-service/soap/PaymentService
-  issuePolicy: policy-service/soap/PolicyService
+  host: 127.0.0.1
+  port: 8500
+  scheme: http
+  token: ""               # Consul ACL token (leave blank if ACL disabled)
+  datacenter: dc1
+  kv-route-prefix: gateway/routes
+  connect-timeout: PT2S
+  read-timeout: PT5S

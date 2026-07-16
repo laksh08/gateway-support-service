@@ -1,3 +1,39 @@
+gateway:
+  allowed-hosts:
+    - "*"
+  route-resolver: yaml
+  load-balancer: round-robin
+  forwarding:
+    connect-timeout: PT2S
+    read-timeout: PT10S
+    write-timeout: PT5S
+    max-connections: 50
+    max-idle-time: PT10S
+    max-in-memory-size-bytes: 1048576
+  cache:
+    route-ttl: PT1S
+    discovery-ttl: PT1S
+    max-size: 100
+  routes:
+    testOperation:
+      service: test-service
+      target-path: /soap/test
+      timeout: PT10S
+    createCustomer:
+      service: customer-service
+      target-path: /soap/customer
+      timeout: PT10S
+
+consul:
+  host: 127.0.0.1
+  port: 8500
+  scheme: http
+  token: ""
+  datacenter: dc1
+  kv-route-prefix: gateway/routes
+  connect-timeout: PT1S
+  read-timeout: PT3S
+
 spring:
   task:
     scheduling:
